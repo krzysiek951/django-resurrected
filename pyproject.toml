@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-resurrected"
+version = "0.1.0"
+dependencies = [
+]
+requires-python = ">=3.8"
+authors = [
+    { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
+]
+maintainers = [
+  {name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com"}
+]
+description = ""
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E.*"]
+keywords = [
+    "recovery",
+    "ressurect",
+    "restore",
+    "retention",
+    "soft-delete",
+    "softdelete",
+    "trash",
+    "undelete",
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Programming Language :: Python"
+]
+
+[project.urls]
+Repository = "https://github.com/krzysiek951/django-resurrected"
