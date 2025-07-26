@@ -6,13 +6,14 @@ build-backend = "hatchling.build"
 name = "django-resurrected"
 version = "0.1.0"
 dependencies = [
+    "Django >= 4.2",
 ]
 requires-python = ">=3.8"
 authors = [
     { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
 ]
 maintainers = [
-  {name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com"}
+    { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" }
 ]
 description = ""
 readme = "README.md"
@@ -29,8 +30,8 @@ keywords = [
     "undelete",
 ]
 classifiers = [
-  "Development Status :: 1 - Planning",
-  "Programming Language :: Python"
+    "Development Status :: 1 - Planning",
+    "Programming Language :: Python"
 ]
 
 [project.urls]
