@@ -58,8 +58,49 @@ extend-exclude = [
     "*/migrations/*",
 ]
 
+[tool.ruff.lint]
+select = [
+    'A', # flake8-builtins
+    'ASYNC', # https://docs.astral.sh/ruff/rules/#flake8-async-async
+    'B', # flake8-bugbear
+    'BLE', # flake8-blind-except
+    'C4', # unnecessary comprehensions, map()
+    'COM', # flake8-commas
+    'DTZ', # flake8-datetimez
+    'E', # pycodestyle
+    'ERA', # No commented out code
+    'EXE', # flake8-executable
+    'F', # pyflakes
+    'FLY', # flynt
+    'G', # flake8-logging-format
+    'I', # isort
+    'ICN', # https://github.com/joaopalmeiro/flake8-import-conventions
+    'ISC', # https://pypi.org/project/flake8-implicit-str-concat/
+    'LOG', # flake8-logging
+    'PERF', # perflint
+    'PIE', # https://pypi.org/project/flake8-pie/
+    'PLC', # Pylint conventions
+    'PLE', # Pylint error
+    'PLW', # Pylint warnings
+    'PT', # https://pypi.org/project/flake8-pytest-style/
+    'PTH', # flake8 use pathlib
+    'RET', # https://pypi.org/project/flake8-return/
+    'RUF', # Ruff rules
+    'S', # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+    'SIM', # https://pypi.org/project/flake8-simplify/
+    'T', # flake8-debugger
+    'TRY', # tryceratops
+    'UP', # pyupgrade
+    'W', # pycodestyle
+]
+
 [tool.ruff.lint.isort]
 force-single-line = true
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+[tool.ruff.per-file-ignores]
+"tests/**/*.py" = [
+    "S101", # Allow using 'assert' in tests.
+]
