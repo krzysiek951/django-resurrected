@@ -40,6 +40,7 @@ dev = [
     "model_bakery",
     "pytest",
     "pytest-django",
+    "ruff",
 ]
 
 [project.urls]
@@ -50,3 +51,14 @@ pythonpath = ["."]
 addopts = ["--import-mode=importlib"]
 DJANGO_SETTINGS_MODULE = "examples.test_project.test_project.settings"
 python_files = ["test_*.py", "*_test.py", "testing/python/*.py"]
+
+[tool.ruff]
+extend-exclude = [
+    "*/migrations/*",
+]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
