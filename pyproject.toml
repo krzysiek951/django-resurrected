@@ -41,6 +41,7 @@ dev = [
     "pytest",
     "pytest-django",
     "ruff",
+    "pre-commit",
 ]
 
 [project.urls]
