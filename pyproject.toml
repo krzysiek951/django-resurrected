@@ -100,7 +100,7 @@ force-single-line = true
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "S101", # Allow using 'assert' in tests.
 ]
