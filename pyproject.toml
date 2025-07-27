@@ -1,108 +1,106 @@
 [build-system]
-requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+requires = [ "hatchling" ]
 
 [project]
 name = "django-resurrected"
 version = "0.1.0"
-requires-python = ">=3.8"
-authors = [
-    { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
-]
-maintainers = [
-    { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" }
-]
 description = ""
 readme = "README.md"
-license = "MIT"
-license-files = ["LICEN[CS]E.*"]
 keywords = [
-    "recovery",
-    "ressurect",
-    "restore",
-    "retention",
-    "soft-delete",
-    "softdelete",
-    "trash",
-    "undelete",
+  "recovery",
+  "ressurect",
+  "restore",
+  "retention",
+  "soft-delete",
+  "softdelete",
+  "trash",
+  "undelete",
 ]
+license = "MIT"
+license-files = [ "LICEN[CS]E.*" ]
+maintainers = [
+  { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
+]
+authors = [
+  { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
+]
+requires-python = ">=3.8"
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
-    "Programming Language :: Python"
+  "Development Status :: 2 - Pre-Alpha",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "Django >= 4.2",
+  "django>=4.2",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "freezegun",
-    "model_bakery",
-    "pre-commit",
-    "pytest",
-    "pytest-django",
-    "pytz",
-    "ruff",
+optional-dependencies.dev = [
+  "freezegun",
+  "model-bakery",
+  "pre-commit",
+  "pytest",
+  "pytest-django",
+  "pytz",
+  "ruff",
 ]
-
-[project.urls]
-Repository = "https://github.com/krzysiek951/django-resurrected"
-
-[tool.pytest.ini_options]
-pythonpath = ["src", "examples/test_project"]
-addopts = ["--import-mode=importlib"]
-DJANGO_SETTINGS_MODULE = "test_project.settings"
-python_files = ["test_*.py", "*_test.py", "testing/python/*.py"]
+urls.Repository = "https://github.com/krzysiek951/django-resurrected"
 
 [tool.ruff]
 extend-exclude = [
-    "*/migrations/*",
+  "*/migrations/*",
 ]
 
-[tool.ruff.lint]
-ignore = ["COM812"]
-select = [
-    'A', # flake8-builtins
-    'ASYNC', # https://docs.astral.sh/ruff/rules/#flake8-async-async
-    'B', # flake8-bugbear
-    'BLE', # flake8-blind-except
-    'C4', # unnecessary comprehensions, map()
-    'COM', # flake8-commas
-    'DTZ', # flake8-datetimez
-    'E', # pycodestyle
-    'ERA', # No commented out code
-    'EXE', # flake8-executable
-    'F', # pyflakes
-    'FLY', # flynt
-    'G', # flake8-logging-format
-    'I', # isort
-    'ICN', # https://github.com/joaopalmeiro/flake8-import-conventions
-    'ISC', # https://pypi.org/project/flake8-implicit-str-concat/
-    'LOG', # flake8-logging
-    'PERF', # perflint
-    'PIE', # https://pypi.org/project/flake8-pie/
-    'PLC', # Pylint conventions
-    'PLE', # Pylint error
-    'PLW', # Pylint warnings
-    'PT', # https://pypi.org/project/flake8-pytest-style/
-    'PTH', # flake8 use pathlib
-    'RET', # https://pypi.org/project/flake8-return/
-    'RUF', # Ruff rules
-    'S', # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
-    'SIM', # https://pypi.org/project/flake8-simplify/
-    'T', # flake8-debugger
-    'TRY', # tryceratops
-    'UP', # pyupgrade
-    'W', # pycodestyle
+lint.select = [
+  "A",     # flake8-builtins
+  "ASYNC", # https://docs.astral.sh/ruff/rules/#flake8-async-async
+  "B",     # flake8-bugbear
+  "BLE",   # flake8-blind-except
+  "C4",    # unnecessary comprehensions, map()
+  "COM",   # flake8-commas
+  "DTZ",   # flake8-datetimez
+  "E",     # pycodestyle
+  "ERA",   # No commented out code
+  "EXE",   # flake8-executable
+  "F",     # pyflakes
+  "FLY",   # flynt
+  "G",     # flake8-logging-format
+  "I",     # isort
+  "ICN",   # https://github.com/joaopalmeiro/flake8-import-conventions
+  "ISC",   # https://pypi.org/project/flake8-implicit-str-concat/
+  "LOG",   # flake8-logging
+  "PERF",  # perflint
+  "PIE",   # https://pypi.org/project/flake8-pie/
+  "PLC",   # Pylint conventions
+  "PLE",   # Pylint error
+  "PLW",   # Pylint warnings
+  "PT",    # https://pypi.org/project/flake8-pytest-style/
+  "PTH",   # flake8 use pathlib
+  "RET",   # https://pypi.org/project/flake8-return/
+  "RUF",   # Ruff rules
+  "S",     # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+  "SIM",   # https://pypi.org/project/flake8-simplify/
+  "T",     # flake8-debugger
+  "TRY",   # tryceratops
+  "UP",    # pyupgrade
+  "W",     # pycodestyle
 ]
-
-[tool.ruff.lint.isort]
-force-single-line = true
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [
-    "S101", # Allow using 'assert' in tests.
+lint.ignore = [ "COM812" ]
+lint.per-file-ignores."tests/**/*.py" = [
+  "S101", # Allow using 'assert' in tests.
 ]
+lint.isort.force-single-line = true
+lint.mccabe.max-complexity = 10
+
+[tool.pytest.ini_options]
+pythonpath = [ "src", "examples/test_project" ]
+addopts = [ "--import-mode=importlib" ]
+DJANGO_SETTINGS_MODULE = "test_project.settings"
+python_files = [ "test_*.py", "*_test.py", "testing/python/*.py" ]
