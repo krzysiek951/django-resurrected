@@ -38,19 +38,20 @@ dependencies = [
 dev = [
     "freezegun",
     "model_bakery",
+    "pre-commit",
     "pytest",
     "pytest-django",
+    "pytz",
     "ruff",
-    "pre-commit",
 ]
 
 [project.urls]
 Repository = "https://github.com/krzysiek951/django-resurrected"
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["src", "examples/test_project"]
 addopts = ["--import-mode=importlib"]
-DJANGO_SETTINGS_MODULE = "examples.test_project.test_project.settings"
+DJANGO_SETTINGS_MODULE = "test_project.settings"
 python_files = ["test_*.py", "*_test.py", "testing/python/*.py"]
 
 [tool.ruff]
