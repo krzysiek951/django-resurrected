@@ -51,6 +51,8 @@ dev = [
   "pytest-django>=4.11.1",
   "pytz>=2025.2",
   "ruff>=0.12.5",
+  "tox>=4.2",
+  "tox-uv>=0.1",
 ]
 
 [tool.ruff]
