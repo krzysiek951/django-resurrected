@@ -20,9 +20,6 @@ keywords = [
 ]
 license = "MIT"
 license-files = [ "LICEN[CS]E.*" ]
-maintainers = [
-  { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
-]
 authors = [
   { name = "Krzysztof Czopkiewicz", email = "krzysiek951@gmail.com" },
 ]
