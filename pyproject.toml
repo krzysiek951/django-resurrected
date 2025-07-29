@@ -10,8 +10,8 @@ description = ""
 readme = "README.md"
 keywords = [
   "recovery",
-  "ressurect",
   "restore",
+  "resurrect",
   "retention",
   "soft-delete",
   "softdelete",
