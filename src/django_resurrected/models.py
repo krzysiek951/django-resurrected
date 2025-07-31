@@ -9,8 +9,6 @@ from django.utils import timezone
 from django.utils.functional import classproperty
 
 from django_resurrected.constants import SOFT_DELETE_RETENTION_DAYS
-from django_resurrected.utils import get_restore_params
-from django_resurrected.utils import update_obj
 
 from .collector import SoftDeleteCollector
 from .exceptions import MissingPrimaryKeyException
@@ -60,22 +58,14 @@ class SoftDeleteModel(models.Model):
         using = using or router.db_for_write(self.__class__, instance=self)
         return SoftDeleteCollector(using=using, origin=self)
 
-    def _collect_related(
-        self,
-        using: str | None = None,
-        keep_parents: bool = False,
-    ) -> SoftDeleteCollector:
-        collector = self._get_collector(using)
-        collector.collect([self], keep_parents=keep_parents)
-        return collector
-
     def remove(
         self,
         using: str | None = None,
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
         self._ensure_pk()
-        collector = self._collect_related(using=using, keep_parents=keep_parents)
+        collector = self._get_collector(using)
+        collector.collect([self], keep_parents=keep_parents)
         return collector.remove()
 
     def hard_delete(
@@ -103,9 +93,8 @@ class SoftDeleteModel(models.Model):
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
         self._ensure_pk()
-        if with_related:
-            collector = self._collect_related(using=using, keep_parents=keep_parents)
-            return collector.restore()
-
-        update_obj(self, **get_restore_params())
-        return 1, {self._meta.label: 1}
+        collector = self._get_collector(using)
+        collector.collect(
+            [self], keep_parents=keep_parents, collect_related=with_related
+        )
+        return collector.restore()

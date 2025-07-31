@@ -93,10 +93,13 @@ class TestRemovedObjectsQuerySet:
         Author.objects.all().remove()
         assert_is_removed(author_1, author_2, author_3, profile_1, profile_2)
 
-        Author.removed_objects.filter(id=author_1.id).restore(with_related=False)
+        result = Author.removed_objects.filter(id=author_1.id).restore(
+            with_related=False
+        )
 
         assert_is_active(author_1)
         assert_is_removed(author_2, author_3, profile_1, profile_2)
+        assert result == (1, {"test_app.Author": 1})
 
     def test_restore_with_related_o2o_cascade(self, make_authors, make_author_profile):
         author_1, author_2, author_3 = make_authors()
@@ -105,10 +108,11 @@ class TestRemovedObjectsQuerySet:
         Author.objects.all().remove()
         assert_is_removed(author_1, author_2, author_3, profile_1, profile_2)
 
-        Author.removed_objects.filter(id=author_1.id).restore()
+        result = Author.removed_objects.filter(id=author_1.id).restore()
 
         assert_is_active(author_1, profile_1)
         assert_is_removed(author_2, author_3, profile_2)
+        assert result == (2, {"test_app.Author": 1, "test_app.AuthorProfile": 1})
 
     def test_restore_with_related_m2o_cascade(self, make_authors, make_book):
         author_1, author_2, author_3 = make_authors()

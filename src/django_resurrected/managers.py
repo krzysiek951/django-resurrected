@@ -3,7 +3,6 @@ from __future__ import annotations
 from django.db import models
 
 from .collector import SoftDeleteCollector
-from .utils import get_restore_params
 
 
 class BaseQuerySet(models.QuerySet):
@@ -16,18 +15,14 @@ class BaseQuerySet(models.QuerySet):
     def _get_collector(self):
         return SoftDeleteCollector(using=self.db, origin=self)
 
-    def _collect_related(self):
-        collector = self._get_collector()
-        collector.collect(self)
-        return collector
-
     def hard_delete(self):
         return super().delete()
 
 
 class ActiveObjectsQuerySet(BaseQuerySet):
     def remove(self):
-        collector = self._collect_related()
+        collector = self._get_collector()
+        collector.collect(self)
         return collector.remove()
 
     def delete(self):
@@ -36,10 +31,9 @@ class ActiveObjectsQuerySet(BaseQuerySet):
 
 class RemovedObjectsQuerySet(BaseQuerySet):
     def restore(self, with_related: bool = True):
-        if with_related:
-            collector = self._collect_related()
-            return collector.restore()
-        return self.update(**get_restore_params())
+        collector = self._get_collector()
+        collector.collect(self, collect_related=with_related)
+        return collector.restore()
 
     def expired(self):
         return self.removed().filter(removed_at__lt=self.model.retention_limit)

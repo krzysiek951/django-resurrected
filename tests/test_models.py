@@ -138,19 +138,21 @@ class TestSoftDeleteModel:
         author.remove()
         assert_is_removed(author, profile)
 
-        author.restore(with_related=False)
+        result = author.restore(with_related=False)
 
         assert_is_active(author)
         assert_is_removed(profile)
+        assert result == (1, {"test_app.Author": 1})
 
     def test_restore_with_related_o2o_cascade(self, author_with_profile):
         author, profile = author_with_profile
         author.remove()
         assert_is_removed(author, profile)
 
-        author.restore()
+        result = author.restore()
 
         assert_is_active(author, profile)
+        assert result == (2, {"test_app.Author": 1, "test_app.AuthorProfile": 1})
 
     def test_restore_with_related_m2o_cascade(self, author_with_books):
         author, books = author_with_books
