@@ -5,6 +5,7 @@ import pytest
 import pytz
 from freezegun.api import freeze_time
 from test_app.models import Author
+from test_app.models import Book
 
 from django_resurrected.managers import ActiveObjectsQuerySet
 from django_resurrected.managers import AllObjectsQuerySet
@@ -122,6 +123,18 @@ class TestRemovedObjectsQuerySet:
         assert_is_removed(author_1, author_2, author_3, book_1, book_2)
 
         Author.removed_objects.filter(id=author_1.id).restore()
+
+        assert_is_active(author_1, book_1)
+        assert_is_removed(author_2, author_3, book_2)
+
+    def test_restore_with_related_o2m(self, make_authors, make_book):
+        author_1, author_2, author_3 = make_authors()
+        book_1 = make_book(author=author_1)
+        book_2 = make_book(author=author_2)
+        Author.active_objects.all().remove()
+        assert_is_removed(author_1, author_2, author_3, book_1, book_2)
+
+        Book.removed_objects.filter(id=book_1.id).restore()
 
         assert_is_active(author_1, book_1)
         assert_is_removed(author_2, author_3, book_2)

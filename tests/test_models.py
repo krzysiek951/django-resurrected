@@ -163,6 +163,17 @@ class TestSoftDeleteModel:
 
         assert_is_active(author, *books)
 
+    def test_restore_with_related_o2m(self, author_with_books):
+        author, books = author_with_books
+        book_1, book_2 = books
+        author.remove()
+        assert_is_removed(author, book_1, book_2)
+
+        book_1.restore()
+
+        assert_is_active(author, book_1)
+        assert_is_removed(book_2)
+
     def test_restore_with_related_m2m(self, book_with_category):
         book, book_category = book_with_category
         book.remove()

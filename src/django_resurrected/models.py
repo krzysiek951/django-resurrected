@@ -10,11 +10,13 @@ from django.utils.functional import classproperty
 
 from django_resurrected.constants import SOFT_DELETE_RETENTION_DAYS
 
-from .collector import SoftDeleteCollector
+from .collector import ForwardRelatedCollector
+from .collector import ReverseRelatedCollector
 from .exceptions import MissingPrimaryKeyException
 from .managers import ActiveObjectsManager
 from .managers import AllObjectsManager
 from .managers import RemovedObjectsManager
+from .utils import restore
 
 
 class SoftDeleteModel(models.Model):
@@ -54,9 +56,17 @@ class SoftDeleteModel(models.Model):
                 self._meta.object_name, self._meta.pk.attname
             )
 
-    def _get_collector(self, using: str | None = None) -> SoftDeleteCollector:
+    def _get_forward_related_collector(
+        self, using: str | None = None
+    ) -> ForwardRelatedCollector:
         using = using or router.db_for_write(self.__class__, instance=self)
-        return SoftDeleteCollector(using=using, origin=self)
+        return ForwardRelatedCollector(using=using, origin=self)
+
+    def _get_reverse_related_collector(
+        self, using: str | None = None
+    ) -> ReverseRelatedCollector:
+        using = using or router.db_for_write(self.__class__, instance=self)
+        return ReverseRelatedCollector(using=using, origin=self)
 
     def remove(
         self,
@@ -64,7 +74,7 @@ class SoftDeleteModel(models.Model):
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
         self._ensure_pk()
-        collector = self._get_collector(using)
+        collector = self._get_reverse_related_collector(using)
         collector.collect([self], keep_parents=keep_parents)
         return collector.remove()
 
@@ -93,8 +103,10 @@ class SoftDeleteModel(models.Model):
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
         self._ensure_pk()
-        collector = self._get_collector(using)
-        collector.collect(
+        forward_rels_collector = self._get_forward_related_collector(using)
+        forward_rels_collector.collect([self])
+        reverse_rels_collector = self._get_reverse_related_collector(using)
+        reverse_rels_collector.collect(
             [self], keep_parents=keep_parents, collect_related=with_related
         )
-        return collector.restore()
+        return restore(forward_rels_collector, reverse_rels_collector)
