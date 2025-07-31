@@ -94,9 +94,7 @@ class TestRemovedObjectsQuerySet:
         Author.objects.all().remove()
         assert_is_removed(author_1, author_2, author_3, profile_1, profile_2)
 
-        result = Author.removed_objects.filter(id=author_1.id).restore(
-            with_related=False
-        )
+        result = Author.removed_objects.filter(id=author_1.id).restore()
 
         assert_is_active(author_1)
         assert_is_removed(author_2, author_3, profile_1, profile_2)
@@ -109,7 +107,9 @@ class TestRemovedObjectsQuerySet:
         Author.objects.all().remove()
         assert_is_removed(author_1, author_2, author_3, profile_1, profile_2)
 
-        result = Author.removed_objects.filter(id=author_1.id).restore()
+        result = Author.removed_objects.filter(id=author_1.id).restore(
+            with_related=True
+        )
 
         assert_is_active(author_1, profile_1)
         assert_is_removed(author_2, author_3, profile_2)
@@ -122,7 +122,7 @@ class TestRemovedObjectsQuerySet:
         Author.active_objects.all().remove()
         assert_is_removed(author_1, author_2, author_3, book_1, book_2)
 
-        Author.removed_objects.filter(id=author_1.id).restore()
+        Author.removed_objects.filter(id=author_1.id).restore(with_related=True)
 
         assert_is_active(author_1, book_1)
         assert_is_removed(author_2, author_3, book_2)
@@ -147,7 +147,7 @@ class TestRemovedObjectsQuerySet:
         category.remove()
         assert_is_removed(author_1, author_2, author_3, book, category)
 
-        Author.removed_objects.filter(id=author_1.id).restore()
+        Author.removed_objects.filter(id=author_1.id).restore(with_related=True)
 
         assert_is_active(author_1, book)
         assert_is_removed(author_2, author_3, category)

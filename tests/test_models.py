@@ -138,7 +138,7 @@ class TestSoftDeleteModel:
         author.remove()
         assert_is_removed(author, profile)
 
-        result = author.restore(with_related=False)
+        result = author.restore()
 
         assert_is_active(author)
         assert_is_removed(profile)
@@ -149,7 +149,7 @@ class TestSoftDeleteModel:
         author.remove()
         assert_is_removed(author, profile)
 
-        result = author.restore()
+        result = author.restore(with_related=True)
 
         assert_is_active(author, profile)
         assert result == (2, {"test_app.Author": 1, "test_app.AuthorProfile": 1})
@@ -159,7 +159,7 @@ class TestSoftDeleteModel:
         author.remove()
         assert_is_removed(author, *books)
 
-        author.restore()
+        author.restore(with_related=True)
 
         assert_is_active(author, *books)
 
@@ -169,7 +169,7 @@ class TestSoftDeleteModel:
         author.remove()
         assert_is_removed(author, book_1, book_2)
 
-        book_1.restore()
+        book_1.restore(with_related=True)
 
         assert_is_active(author, book_1)
         assert_is_removed(book_2)
@@ -180,7 +180,7 @@ class TestSoftDeleteModel:
         book_category.remove()
         assert_is_removed(book, book_category)
 
-        book.restore()
+        book.restore(with_related=True)
 
         assert_is_active(book)
         # NOTE: M2M relations are not restored, as Django doesn't include them in
@@ -193,6 +193,6 @@ class TestSoftDeleteModel:
         category.remove()
         assert_is_removed(author, profile, book, book_meta, category)
 
-        author.restore()
+        author.restore(with_related=True)
         assert_is_active(author, profile, book, book_meta)
         assert_is_removed(category)

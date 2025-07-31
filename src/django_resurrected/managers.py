@@ -35,7 +35,7 @@ class ActiveObjectsQuerySet(BaseQuerySet):
 
 
 class RemovedObjectsQuerySet(BaseQuerySet):
-    def restore(self, with_related: bool = True):
+    def restore(self, with_related: bool = False):
         forward_rels_collector = self._get_forward_related_collector()
         forward_rels_collector.collect(self)
         reverse_rels_collector = self._get_reverse_related_collector()

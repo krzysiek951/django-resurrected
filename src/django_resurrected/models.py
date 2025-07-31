@@ -98,7 +98,7 @@ class SoftDeleteModel(models.Model):
 
     def restore(
         self,
-        with_related: bool = True,
+        with_related: bool = False,
         using: str | None = None,
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
