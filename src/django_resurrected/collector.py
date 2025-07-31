@@ -30,7 +30,7 @@ class CollectorProtocol(Protocol):
 
 class BaseCollector(NestedObjects):
     @property
-    def model_objs_for_soft_delete(
+    def model_objs_for_update(
         self,
     ) -> dict[type[SoftDeleteModel], set[SoftDeleteModel]]:
         return {
@@ -40,10 +40,10 @@ class BaseCollector(NestedObjects):
         }
 
     @property
-    def querysets_for_soft_delete(self) -> list[AllObjectsQuerySet]:
+    def querysets_for_update(self) -> list[AllObjectsQuerySet]:
         querysets = []
 
-        for model, objs in self.model_objs_for_soft_delete.items():
+        for model, objs in self.model_objs_for_update.items():
             if pk_list := [obj.pk for obj in objs if obj.pk is not None]:
                 querysets.append(model.objects.filter(pk__in=pk_list))
 
@@ -52,7 +52,7 @@ class BaseCollector(NestedObjects):
     def update(self, **kwargs) -> tuple[int, dict[str, int]]:
         counter: Counter[str] = Counter()
 
-        for queryset in self.querysets_for_soft_delete:
+        for queryset in self.querysets_for_update:
             count = queryset.update(**kwargs)
             counter[queryset.model._meta.label] += count
 
