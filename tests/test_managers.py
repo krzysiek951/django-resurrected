@@ -17,8 +17,8 @@ from tests.conftest import assert_is_removed
 @pytest.mark.django_db
 class TestActiveObjectsQuerySet:
     @freeze_time("2025-05-01")
-    def test_remove(self, make_authors):
-        authors = make_authors()
+    def test_remove(self, make_author):
+        authors = make_author(_quantity=3)
         assert_is_active(*authors)
 
         Author.active_objects.all().remove()
@@ -26,8 +26,8 @@ class TestActiveObjectsQuerySet:
         assert_is_removed(*authors, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc))
 
     @freeze_time("2025-05-01")
-    def test_remove_with_related_o2o_cascade(self, make_authors, make_author_profile):
-        author_1, author_2, author_3 = make_authors()
+    def test_remove_with_related_o2o_cascade(self, make_author, make_author_profile):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         profile_1 = make_author_profile(author=author_1)
         profile_2 = make_author_profile(author=author_2)
         assert_is_active(author_1, author_2, author_3, profile_1, profile_2)
@@ -40,8 +40,8 @@ class TestActiveObjectsQuerySet:
         )
 
     @freeze_time("2025-05-01")
-    def test_remove_with_related_m2o_cascade(self, make_authors, make_book):
-        author_1, author_2, author_3 = make_authors()
+    def test_remove_with_related_m2o_cascade(self, make_author, make_book):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         book_1 = make_book(author=author_1)
         book_2 = make_book(author=author_2)
         assert_is_active(author_1, author_2, author_3, book_1, book_2)
@@ -54,10 +54,10 @@ class TestActiveObjectsQuerySet:
         )
 
     @freeze_time("2025-05-01")
-    def test_remove_with_related_m2m(self, make_authors, book_with_category):
+    def test_remove_with_related_m2m(self, make_author, book_with_category):
         book, category = book_with_category
         author_1 = book.author
-        author_2, author_3 = make_authors(quantity=2)
+        author_2, author_3 = make_author(_quantity=2)
         assert_is_active(author_1, author_2, author_3, book, category)
 
         Author.active_objects.filter(id=author_1.id).remove()
@@ -77,8 +77,8 @@ class TestActiveObjectsQuerySet:
 
 @pytest.mark.django_db
 class TestRemovedObjectsQuerySet:
-    def test_restore(self, make_authors):
-        author_1, author_2, author_3 = make_authors()
+    def test_restore(self, make_author):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         Author.objects.all().remove()
         assert_is_removed(author_1, author_2, author_3)
 
@@ -87,8 +87,8 @@ class TestRemovedObjectsQuerySet:
         assert_is_active(author_1, author_2)
         assert_is_removed(author_3)
 
-    def test_restore_without_related(self, make_authors, make_author_profile):
-        author_1, author_2, author_3 = make_authors()
+    def test_restore_without_related(self, make_author, make_author_profile):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         profile_1 = make_author_profile(author=author_1)
         profile_2 = make_author_profile(author=author_2)
         Author.objects.all().remove()
@@ -100,8 +100,8 @@ class TestRemovedObjectsQuerySet:
         assert_is_removed(author_2, author_3, profile_1, profile_2)
         assert result == (1, {"test_app.Author": 1})
 
-    def test_restore_with_related_o2o_cascade(self, make_authors, make_author_profile):
-        author_1, author_2, author_3 = make_authors()
+    def test_restore_with_related_o2o_cascade(self, make_author, make_author_profile):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         profile_1 = make_author_profile(author=author_1)
         profile_2 = make_author_profile(author=author_2)
         Author.objects.all().remove()
@@ -115,8 +115,8 @@ class TestRemovedObjectsQuerySet:
         assert_is_removed(author_2, author_3, profile_2)
         assert result == (2, {"test_app.Author": 1, "test_app.AuthorProfile": 1})
 
-    def test_restore_with_related_m2o_cascade(self, make_authors, make_book):
-        author_1, author_2, author_3 = make_authors()
+    def test_restore_with_related_m2o_cascade(self, make_author, make_book):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         book_1 = make_book(author=author_1)
         book_2 = make_book(author=author_2)
         Author.active_objects.all().remove()
@@ -127,8 +127,8 @@ class TestRemovedObjectsQuerySet:
         assert_is_active(author_1, book_1)
         assert_is_removed(author_2, author_3, book_2)
 
-    def test_restore_with_related_o2m(self, make_authors, make_book):
-        author_1, author_2, author_3 = make_authors()
+    def test_restore_with_related_o2m(self, make_author, make_book):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         book_1 = make_book(author=author_1)
         book_2 = make_book(author=author_2)
         Author.active_objects.all().remove()
@@ -139,10 +139,10 @@ class TestRemovedObjectsQuerySet:
         assert_is_active(author_1, book_1)
         assert_is_removed(author_2, author_3, book_2)
 
-    def test_restore_with_related_m2m(self, make_authors, book_with_category):
+    def test_restore_with_related_m2m(self, make_author, book_with_category):
         book, category = book_with_category
         author_1 = book.author
-        author_2, author_3 = make_authors(quantity=2)
+        author_2, author_3 = make_author(_quantity=2)
         Author.active_objects.all().remove()
         category.remove()
         assert_is_removed(author_1, author_2, author_3, book, category)
@@ -158,8 +158,8 @@ class TestRemovedObjectsQuerySet:
         purge_mock.assert_called_once()
 
     @freeze_time("2025-05-01")
-    def test_purge(self, make_authors):
-        author_1, author_2, author_3 = make_authors()
+    def test_purge(self, make_author):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         author_1.remove()
         assert_is_active(author_2, author_3)
         assert_is_removed(author_1)
@@ -175,8 +175,8 @@ class TestRemovedObjectsQuerySet:
         assert Author.objects.count() == 2
 
     @freeze_time("2025-05-01")
-    def test_expired(self, make_authors):
-        author_1, author_2, author_3 = make_authors()
+    def test_expired(self, make_author):
+        author_1, author_2, author_3 = make_author(_quantity=3)
         author_1.remove()
         assert_is_active(author_2, author_3)
         assert_is_removed(author_1)

@@ -10,6 +10,7 @@ from django_resurrected.managers import AllObjectsManager
 from django_resurrected.managers import RemovedObjectsManager
 from tests.conftest import assert_is_active
 from tests.conftest import assert_is_removed
+from tests.conftest import remove_objs
 
 
 @pytest.mark.django_db
@@ -187,12 +188,300 @@ class TestSoftDeleteModel:
         # cascade operations.
         assert_is_removed(book_category)
 
-    def test_restore_with_nested_relations(self, author_with_nested_relations):
-        author, profile, book, book_meta, category = author_with_nested_relations
-        author.remove()
-        category.remove()
-        assert_is_removed(author, profile, book, book_meta, category)
 
-        author.restore(with_related=True)
-        assert_is_active(author, profile, book, book_meta)
-        assert_is_removed(category)
+@pytest.mark.django_db
+class TestSoftDeleteModelWithAllRelations:
+    def test_remove_author(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        author_1.remove()
+
+        assert_is_removed(author_1, profile, book_1, book_2, book_meta_1, book_meta_2)
+        assert_is_active(category_1, category_2, author_2, *author_2_rels)
+
+    def test_remove_profile(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+
+        profile.remove()
+
+        assert_is_removed(profile)
+        assert_is_active(
+            author_1,
+            book_1,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_remove_book(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+
+        book_1.remove()
+
+        assert_is_removed(book_1, book_meta_1)
+        assert_is_active(
+            profile,
+            book_2,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_remove_book_meta(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+
+        book_meta_1.remove()
+
+        assert_is_removed(book_meta_1)
+        assert_is_active(
+            author_1,
+            book_1,
+            profile,
+            book_2,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_remove_category(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+
+        category_1.remove()
+
+        assert_is_removed(category_1)
+        assert_is_active(
+            author_1,
+            profile,
+            book_1,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_author(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        author_1.restore()
+
+        assert_is_active(author_1)
+        assert_is_removed(*author_1_rels, author_2, *author_2_rels)
+
+    def test_restore_author_with_related(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        author_1.restore(with_related=True)
+
+        assert_is_active(author_1, profile, book_1, book_2, book_meta_1, book_meta_2)
+        assert_is_removed(category_1, category_2, author_2, *author_2_rels)
+
+    def test_restore_profile(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        profile.restore()
+
+        assert_is_active(author_1, profile)
+        assert_is_removed(
+            book_1,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_profile_with_related(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        profile.restore(with_related=True)
+
+        assert_is_active(author_1, profile)
+        assert_is_removed(
+            book_1,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_book(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        book_1.restore()
+
+        assert_is_active(author_1, book_1)
+        assert_is_removed(
+            profile,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_book_with_related(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        book_1.restore(with_related=True)
+
+        assert_is_active(author_1, book_1, book_meta_1)
+        assert_is_removed(
+            profile,
+            book_2,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_book_meta(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        book_meta_1.restore()
+
+        assert_is_active(author_1, book_1, book_meta_1)
+        assert_is_removed(
+            profile,
+            book_2,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_book_meta_with_related(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        book_meta_1.restore(with_related=True)
+
+        assert_is_active(author_1, book_1, book_meta_1)
+        assert_is_removed(
+            profile,
+            book_2,
+            book_meta_2,
+            category_1,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_category(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        category_1.restore()
+
+        assert_is_active(category_1)
+        assert_is_removed(
+            author_1,
+            profile,
+            book_1,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
+
+    def test_restore_category_with_related(self, make_author_with_all_relations):
+        author_1, author_1_rels = make_author_with_all_relations()
+        author_2, author_2_rels = make_author_with_all_relations()
+        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
+            author_1_rels
+        )
+        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
+
+        category_1.restore(with_related=True)
+
+        assert_is_active(category_1)
+        assert_is_removed(
+            author_1,
+            profile,
+            book_1,
+            book_2,
+            book_meta_1,
+            book_meta_2,
+            category_2,
+            author_2,
+            *author_2_rels,
+        )
