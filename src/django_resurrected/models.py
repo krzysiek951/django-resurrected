@@ -12,7 +12,6 @@ from django_resurrected.constants import SOFT_DELETE_RETENTION_DAYS
 
 from .collector import ForwardRelatedCollector
 from .collector import ReverseRelatedCollector
-from .exceptions import MissingPrimaryKeyException
 from .managers import ActiveObjectsManager
 from .managers import AllObjectsManager
 from .managers import RemovedObjectsManager
@@ -50,12 +49,6 @@ class SoftDeleteModel(models.Model):
             and self.removed_at < self.retention_limit,
         )
 
-    def _ensure_pk(self) -> None:
-        if self.pk is None:
-            raise MissingPrimaryKeyException(
-                self._meta.object_name, self._meta.pk.attname
-            )
-
     def _get_forward_related_collector(
         self, using: str | None = None
     ) -> ForwardRelatedCollector:
@@ -73,7 +66,6 @@ class SoftDeleteModel(models.Model):
         using: str | None = None,
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
-        self._ensure_pk()
         collector = self._get_reverse_related_collector(using)
         collector.collect([self], keep_parents=keep_parents)
         return collector.remove()
@@ -90,7 +82,6 @@ class SoftDeleteModel(models.Model):
         using: str | None = None,
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
-        self._ensure_pk()
         if self.is_expired:
             return self.hard_delete(using=using, keep_parents=keep_parents)
 
@@ -102,7 +93,6 @@ class SoftDeleteModel(models.Model):
         using: str | None = None,
         keep_parents: bool = False,
     ) -> tuple[int, dict[str, int]]:
-        self._ensure_pk()
         forward_rels_collector = self._get_forward_related_collector(using)
         forward_rels_collector.collect([self])
         reverse_rels_collector = self._get_reverse_related_collector(using)

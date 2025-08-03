@@ -48,15 +48,6 @@ class TestSoftDeleteModel:
 
         assert_is_removed(test_author, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc))
 
-    def test_remove_missing_pk(self):
-        author = Author()
-        with pytest.raises(
-            ValueError,
-            match="Operation cannot be performed on Author because its id attribute is "
-            "None.",
-        ):
-            author.remove()
-
     @freeze_time("2025-05-01")
     def test_remove_with_relation_o2o_cascade(self, author_with_profile):
         author, profile = author_with_profile
@@ -108,15 +99,6 @@ class TestSoftDeleteModel:
             test_author.delete()
             assert Author.objects.filter(id=test_author.id).exists() is False
 
-    def test_delete_missing_pk(self):
-        author = Author()
-        with pytest.raises(
-            ValueError,
-            match="Operation cannot be performed on Author because its id attribute is "
-            "None.",
-        ):
-            author.delete()
-
     def test_restore(self, test_author):
         test_author.remove()
         assert_is_removed(test_author)
@@ -124,15 +106,6 @@ class TestSoftDeleteModel:
         test_author.restore()
 
         assert_is_active(test_author)
-
-    def test_restore_missing_pk(self):
-        author = Author()
-        with pytest.raises(
-            ValueError,
-            match="Operation cannot be performed on Author because its id attribute is "
-            "None.",
-        ):
-            author.restore()
 
     def test_restore_without_related_o2o_cascade(self, author_with_profile):
         author, profile = author_with_profile
