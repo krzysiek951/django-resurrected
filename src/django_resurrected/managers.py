@@ -53,8 +53,7 @@ class RemovedObjectsQuerySet(BaseQuerySet):
 
 
 class AllObjectsQuerySet(ActiveObjectsQuerySet, RemovedObjectsQuerySet):
-    def delete(self):
-        return self.remove()
+    pass
 
 
 class AllObjectsManager(models.Manager):
