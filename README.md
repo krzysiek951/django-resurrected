@@ -16,25 +16,12 @@ Instead of permanently removing objects, it marks them as “removed,” making 
 The package supports **relation-aware deletion** and **restoration**, along with **configurable retention**.
 
 ## Table of Contents
-
-- [Features](#features)
-- [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [License](#license)
 
-## Installation
-
-Install the package from PyPI:
-
-```bash
-pip install django-resurrected
-```
 
 ## Quick Start
-
-Here’s how to get started:
-
 ### 1. Install
 
 ```bash
