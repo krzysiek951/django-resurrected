@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from django.db import models
 
-from .collector import ForwardRelatedCollector
-from .collector import ReverseRelatedCollector
-from .utils import restore
+from django_resurrected.collectors import Collector
 
 
 class BaseQuerySet(models.QuerySet):
@@ -14,11 +12,8 @@ class BaseQuerySet(models.QuerySet):
     def removed(self):
         return self.filter(is_removed=True)
 
-    def _get_forward_related_collector(self) -> ForwardRelatedCollector:
-        return ForwardRelatedCollector(using=self.db, origin=self)
-
-    def _get_reverse_related_collector(self) -> ReverseRelatedCollector:
-        return ReverseRelatedCollector(using=self.db, origin=self)
+    def _get_collector(self) -> Collector:
+        return Collector(using=self.db, origin=self)
 
     def hard_delete(self):
         return super().delete()
@@ -26,8 +21,8 @@ class BaseQuerySet(models.QuerySet):
 
 class ActiveObjectsQuerySet(BaseQuerySet):
     def remove(self):
-        collector = self._get_reverse_related_collector()
-        collector.collect(self)
+        collector = self._get_collector()
+        collector.collect_reverse_related(self)
         return collector.remove()
 
     def delete(self):
@@ -36,11 +31,10 @@ class ActiveObjectsQuerySet(BaseQuerySet):
 
 class RemovedObjectsQuerySet(BaseQuerySet):
     def restore(self, with_related: bool = False):
-        forward_rels_collector = self._get_forward_related_collector()
-        forward_rels_collector.collect(self)
-        reverse_rels_collector = self._get_reverse_related_collector()
-        reverse_rels_collector.collect(self, collect_related=with_related)
-        return restore(forward_rels_collector, reverse_rels_collector)
+        collector = self._get_collector()
+        collector.collect_forward_related(self)
+        collector.collect_reverse_related(self, collect_related=with_related)
+        return collector.restore()
 
     def expired(self):
         return self.removed().filter(removed_at__lt=self.model.retention_limit)
