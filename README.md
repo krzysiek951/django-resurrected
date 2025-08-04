@@ -5,42 +5,23 @@
   </p>
   <p align="center">
     <a href="https://pypi.org/project/django-resurrected/"><img src="https://img.shields.io/pypi/v/django-resurrected.svg" alt="PyPI Version"></a>
-    <a href="https://github.com/krzysiek951/django-resurrected/actions"><img src="https://img.shields.io/github/actions/workflow/status/krzysiek951/django-resurrected/main.yml?branch=main" alt="Build Status"></a>
-    <a href="https://codecov.io/gh/krzysiek951/django-resurrected"><img src="https://img.shields.io/codecov/c/github/krzysiek951/django-resurrected.svg" alt="Coverage Status"></a>
     <a href="https://pypi.org/project/django-resurrected/"><img src="https://img.shields.io/pypi/pyversions/django-resurrected.svg" alt="Python Versions"></a>
   </p>
 </div>
 
 ---
 
-`django-resurrected` provides robust soft-deletion capabilities for your Django projects. Instead of permanently deleting objects from your database, this package marks them as "removed," allowing you to restore them later. This is an invaluable safety net against accidental data loss.
-
-## Why `django-resurrected`?
-
--   **Prevent Data Loss**: Protect your application's data from accidental deletion by users or developers.
--   **Maintain Data Integrity**: Cascading soft-deletes ensure that related objects are handled correctly, preserving relationships.
--   **Full Control**: Flexible model managers give you granular control over querying active, removed, or all objects.
--   **Easy Integration**: Simply inherit from `SoftDeleteModel` to add soft-deletion capabilities to any model.
+`django-resurrected` provides soft-delete functionality for Django projects.
+Instead of permanently removing objects, it marks them as “removed,” making them easy to restore later.
+The package supports **relation-aware deletion** and **restoration**, along with **configurable retention**.
 
 ## Table of Contents
 
--   [Features](#features)
--   [Installation](#installation)
--   [Quick Start](#quick-start)
--   [Usage Guide](#usage-guide)
-    -   [Model Managers](#model-managers)
-    -   [Deleting and Restoring](#deleting-and-restoring)
-    -   [Permanent Deletion (Purging)](#permanent-deletion-purging)
--   [Configuration](#configuration)
--   [License](#license)
-
-## Features
-
--   ✅ **Effortless Soft Deletion**: "Delete" objects without permanently losing them.
--   ✅ **Simple Restoration**: Restore soft-deleted objects with a single command.
--   ✅ **Cascading Deletes**: Automatically soft-delete related objects.
--   ✅ **Configurable Retention Periods**: Control how long to keep removed objects before they can be purged.
--   ✅ **Full Typing Support**: Enjoy a modern development experience with complete type hints.
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [License](#license)
 
 ## Installation
 
@@ -52,75 +33,113 @@ pip install django-resurrected
 
 ## Quick Start
 
-1.  **Inherit from `SoftDeleteModel`**: Update your model to inherit from `django_resurrected.models.SoftDeleteModel`.
-2.  **Use the New Managers**: Your model will now have `objects`, `active_objects`, and `removed_objects` managers.
+Here’s how to get started:
 
-Here’s a quick example:
+### 1. Install
+
+```bash
+pip install django-resurrected
+```
+
+### 2. Update Your Models
+
+Inherit from `SoftDeleteModel` to enable soft-deletion and restoration:
 
 ```python
-# your_app/models.py
 from django.db import models
 from django_resurrected.models import SoftDeleteModel
 
-class BlogPost(SoftDeleteModel):
+class Author(SoftDeleteModel):
+    name = models.CharField(max_length=100)
+
+class Book(SoftDeleteModel):
+    author = models.ForeignKey(Author, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
-    content = models.TextField()
 
-    def __str__(self):
-        return self.title
+class BookMeta(SoftDeleteModel):
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+    format = models.CharField(max_length=20)
 ```
 
-Now you can manage your model instances safely:
+### 3. Use the Enhanced Managers
+
+Each manager now has:
+- `.objects` — all records (active + removed)
+- `.active_objects` — only active (not removed)
+- `.removed_objects` — only soft-deleted
+
+### 4. Remove (Soft-Delete) with Cascading
+
+Removing a parent will also remove its related children:
 
 ```python
->>> # Create a new post
->>> post = BlogPost.objects.create(title="My First Post")
->>> BlogPost.active_objects.count()
+>>> author = Author.objects.create(name="Frank")
+>>> book = Book.objects.create(author=author, title="Dune")
+>>> meta = BookMeta.objects.create(book=book, format="ebook")
+
+>>> Author.active_objects.count()
+1
+>>> Book.active_objects.count()
+1
+>>> BookMeta.active_objects.count()
 1
 
->>> # Soft-delete the post
->>> post.remove()
->>> BlogPost.active_objects.count()
+>>> author.remove()
+(3, {'test_app.Author': 1, 'test_app.Book': 1, 'test_app.BookMeta': 1})
+
+>>> Author.active_objects.count()
 0
->>> BlogPost.removed_objects.count()
-1
+>>> Book.active_objects.count()
+0
+>>> BookMeta.active_objects.count()
+0
+```
 
->>> # Restore the post
->>> post.restore()
->>> BlogPost.active_objects.count()
+### 5. Restore: Selective or Cascading
+
+#### Restore only the top-level object
+
+```python
+>>> author.restore()
+(1, {'test_app.Author': 1})
+
+>>> Author.active_objects.count()
+1
+>>> Book.active_objects.count()
+0
+>>> BookMeta.active_objects.count()
+0
+```
+
+#### Restore with all related objects
+
+```python
+>>> author.restore(with_related=True)
+(3, {'test_app.Author': 1, 'test_app.Book': 1, 'test_app.BookMeta': 1})
+
+>>> Author.active_objects.count()
+1
+>>> Book.active_objects.count()
+1
+>>> BookMeta.active_objects.count()
 1
 ```
 
-## Usage Guide
-
-### Model Managers
-
-`SoftDeleteModel` equips your model with three distinct managers:
-
--   `YourModel.objects`: The default manager. Returns **all** objects (both active and removed).
--   `YourModel.active_objects`: Returns only active (not deleted) objects. Use this for most of your application logic.
--   `YourModel.removed_objects`: Returns only soft-deleted objects.
-
-### Deleting and Restoring
-
-You can perform soft-delete and restore operations on both individual instances and querysets.
-
--   `instance.remove()`: Soft-deletes a single model instance and its related objects.
--   `instance.restore()`: Restores a soft-deleted instance and its related objects.
--   `queryset.remove()`: Soft-deletes all objects in a queryset.
--   `queryset.restore()`: Restores all objects in a queryset.
-
-### Permanent Deletion (Purging)
-
-You can permanently delete objects that have passed their retention period. By default, objects are retained for 30 days.
+#### Restore from a mid-level object
 
 ```python
-# Check if an object is expired and ready for purging
->>> post.is_expired
-False
+>>> author.remove()
+(3, {'test_app.Author': 1, 'test_app.Book': 1, 'test_app.BookMeta': 1})
 
-# Purge all expired objects for a model
->>> BlogPost.removed_objects.expired().purge()
+>>> book.restore()
+(2, {'test_app.Book': 1, 'test_app.Author': 1})
+
+>>> Author.active_objects.count()
+1
+>>> Book.active_objects.count()
+1
+>>> BookMeta.active_objects.count()
+0
 ```
 
 ## Configuration
@@ -140,6 +159,12 @@ class TemporaryFile(SoftDeleteModel):
     # Keep for one week
     retention_days = 7
     data = models.BinaryField()
+```
+
+To permanently remove objects that have exceeded their retention limit, call `purge()`:
+
+```python
+>>> TemporaryFile.removed_objects.all().purge()
 ```
 
 ## License
