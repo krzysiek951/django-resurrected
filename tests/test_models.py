@@ -2,6 +2,8 @@ from datetime import datetime
 
 import pytest
 import pytz
+from django.db.models import ProtectedError
+from django.db.models import RestrictedError
 from freezegun import freeze_time
 from test_app.models import Author
 
@@ -71,6 +73,15 @@ class TestSoftDeleteModel:
             author, book1, book2, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc)
         )
 
+    def test_remove_with_relation_m2o_nullable(self, author_with_book_nullable):
+        author, book = author_with_book_nullable
+        assert_is_active(author, book)
+
+        author.remove()
+
+        assert_is_removed(author)
+        assert_is_active(book)
+
     def test_remove_with_relation_m2m(self, book_with_category):
         book, category = book_with_category
         assert_is_active(book, category)
@@ -81,6 +92,58 @@ class TestSoftDeleteModel:
         # NOTE: M2M relations are not removed, as Django doesn't include them in cascade
         # operations.
         assert_is_active(category)
+
+    @pytest.mark.parametrize(
+        ("fixture_name", "obj_index"),
+        [
+            ("relation_o2o", 0),
+            ("relation_o2o", 1),
+            ("relation_m2o_cascade", 0),
+            ("relation_m2o_cascade", 1),
+            ("relation_m2o_restrict", 0),
+            ("relation_m2o_protect", 0),
+            ("relation_m2o_nullable", 0),
+            ("relation_m2o_nullable", 1),
+        ],
+    )
+    def test_remove_matches_django_behaviour(self, fixture_name, obj_index, request):
+        obj = request.getfixturevalue(fixture_name)[obj_index]
+        assert obj.remove() == obj.hard_delete()
+
+    @pytest.mark.parametrize(
+        ("fixture_name", "obj_index", "exc"),
+        [
+            ("relation_m2o_restrict", 1, RestrictedError),
+            ("relation_m2o_protect", 1, ProtectedError),
+        ],
+    )
+    def test_remove_matches_django_behaviour_raising_exception(
+        self, fixture_name, obj_index, exc, request
+    ):
+        obj = request.getfixturevalue(fixture_name)[obj_index]
+        for method in [obj.remove, obj.hard_delete]:
+            with pytest.raises(exc):
+                method()
+
+    @pytest.mark.parametrize(
+        ("fixture_name", "obj_index", "through_model"),
+        [
+            ("relation_m2m", 0, "test_app.Book_categories"),
+            ("relation_m2m", 1, "test_app.Book_categories"),
+        ],
+    )
+    def test_remove_matches_django_behaviour_m2m(
+        self, fixture_name, obj_index, request, through_model
+    ):
+        obj = request.getfixturevalue(fixture_name)[obj_index]
+
+        result = obj.remove()
+        num_deleted, num_deleted_per_model = obj.hard_delete()
+        # Remove the through model from the django result, which is not soft-deleted:
+        del num_deleted_per_model[through_model]
+        expected = num_deleted - 1, num_deleted_per_model
+
+        assert result == expected
 
     def test_hard_delete(self, test_author):
         assert Author.objects.filter(id=test_author.id).exists()
@@ -107,7 +170,16 @@ class TestSoftDeleteModel:
 
         assert_is_active(test_author)
 
-    def test_restore_without_related_o2o_cascade(self, author_with_profile):
+    def test_restore_m2o_without_nullable(self, author_with_book_nullable):
+        author, book = author_with_book_nullable
+        remove_objs(author, book)
+
+        book.restore()
+
+        assert_is_active(book)
+        assert_is_removed(author)
+
+    def test_restore_o2o_cascade(self, author_with_profile):
         author, profile = author_with_profile
         author.remove()
         assert_is_removed(author, profile)

@@ -4,8 +4,6 @@ from django.db import models
 
 from django_resurrected.models import SoftDeleteModel
 
-from .constants import BookFormat
-
 
 class BaseModel(SoftDeleteModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -15,28 +13,41 @@ class BaseModel(SoftDeleteModel):
 
 
 class Author(BaseModel):
-    name = models.CharField(max_length=100)
+    pass
 
 
 class AuthorProfile(BaseModel):
     author = models.OneToOneField(
         Author, on_delete=models.CASCADE, related_name="profile"
     )
-    bio = models.TextField(blank=True)
 
 
 class BookCategory(BaseModel):
-    name = models.CharField(max_length=100, unique=True)
+    pass
 
 
 class Book(BaseModel):
-    title = models.CharField(max_length=100)
-    author = models.ForeignKey(Author, on_delete=models.CASCADE)
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="books")
     categories = models.ManyToManyField(BookCategory, related_name="books", blank=True)
+
+
+class BookProtect(BaseModel):
+    author = models.ForeignKey(
+        Author, on_delete=models.PROTECT, related_name="books_protected"
+    )
+
+
+class BookRestrict(BaseModel):
+    author = models.ForeignKey(
+        Author, on_delete=models.RESTRICT, related_name="books_restricted"
+    )
+
+
+class BookNullable(BaseModel):
+    author = models.ForeignKey(
+        Author, on_delete=models.SET_NULL, related_name="books_nullable", null=True
+    )
 
 
 class BookMeta(BaseModel):
     book = models.OneToOneField(Book, on_delete=models.CASCADE, related_name="meta")
-    format = models.CharField(
-        max_length=30, choices=BookFormat.choices, default=BookFormat.PAPERBACK
-    )

@@ -45,6 +45,27 @@ def make_book():
 
 
 @pytest.fixture
+def make_book_restrict():
+    return lambda author, **kwargs: baker.make(
+        models.BookRestrict, author=author, **kwargs
+    )
+
+
+@pytest.fixture
+def make_book_protect():
+    return lambda author, **kwargs: baker.make(
+        models.BookProtect, author=author, **kwargs
+    )
+
+
+@pytest.fixture
+def make_book_nullable():
+    return lambda author, **kwargs: baker.make(
+        models.BookNullable, author=author, **kwargs
+    )
+
+
+@pytest.fixture
 def make_book_meta():
     return lambda book, **kwargs: baker.make(models.BookMeta, book=book, **kwargs)
 
@@ -64,6 +85,13 @@ def author_with_profile(make_author, make_author_profile):
     author = make_author()
     profile = make_author_profile(author=author)
     return author, profile
+
+
+@pytest.fixture
+def author_with_book_nullable(make_author, make_book_nullable):
+    author = make_author()
+    book = make_book_nullable(author=author)
+    return author, book
 
 
 @pytest.fixture
@@ -105,3 +133,40 @@ def make_author_with_all_relations(
         )
 
     return _make_author_with_all_relations
+
+
+@pytest.fixture
+def relation_m2m(book_with_category):
+    return book_with_category
+
+
+@pytest.fixture
+def relation_m2o_cascade(make_author, make_book):
+    author = make_author()
+    book = make_book(author=author)
+    return book, author
+
+
+@pytest.fixture
+def relation_m2o_protect(make_author, make_book_protect):
+    author = make_author()
+    book = make_book_protect(author=author)
+    return book, author
+
+
+@pytest.fixture
+def relation_m2o_restrict(make_author, make_book_restrict):
+    author = make_author()
+    book = make_book_restrict(author=author)
+    return book, author
+
+
+@pytest.fixture
+def relation_m2o_nullable(author_with_book_nullable):
+    author, book = author_with_book_nullable
+    return book, author
+
+
+@pytest.fixture
+def relation_o2o(author_with_profile):
+    return author_with_profile
