@@ -22,6 +22,10 @@ class AuthorProfile(BaseModel):
     )
 
 
+class ProfileMeta(BaseModel):
+    profile = models.OneToOneField(AuthorProfile, on_delete=models.CASCADE)
+
+
 class BookCategory(BaseModel):
     pass
 
@@ -50,4 +54,4 @@ class BookNullable(BaseModel):
 
 
 class BookMeta(BaseModel):
-    book = models.OneToOneField(Book, on_delete=models.CASCADE, related_name="meta")
+    book = models.OneToOneField(Book, on_delete=models.CASCADE)

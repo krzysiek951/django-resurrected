@@ -21,6 +21,47 @@ def assert_is_removed(*objs, removed_at: datetime | None = None):
         assert obj.removed_at if removed_at is None else obj.removed_at == removed_at
 
 
+def assert_is_remove_targeting_objects_for_deletion(
+    model_or_queryset, remove_result, through_models=None
+):
+    num_deleted, num_deleted_per_model = model_or_queryset.hard_delete()
+    for model in through_models or []:
+        count = num_deleted_per_model.pop(model)
+        num_deleted -= count
+    assert remove_result == (num_deleted, num_deleted_per_model)
+
+
+def run_remove_test(
+    obj_or_queryset_to_remove,
+    expected_removed=None,
+    through_models=None,
+    expected_active=None,
+):
+    result = obj_or_queryset_to_remove.remove()
+
+    if expected_active:
+        assert_is_active(*expected_active)
+    if expected_removed:
+        assert_is_removed(*expected_removed)
+    assert_is_remove_targeting_objects_for_deletion(
+        obj_or_queryset_to_remove, result, through_models
+    )
+
+
+def run_restore_test(
+    obj_or_queryset_to_restore,
+    with_related=False,
+    expected_active=None,
+    expected_removed=None,
+):
+    obj_or_queryset_to_restore.restore(with_related=with_related)
+
+    if expected_active:
+        assert_is_active(*expected_active)
+    if expected_removed:
+        assert_is_removed(*expected_removed)
+
+
 def remove_objs(*objs):
     for obj in objs:
         obj.remove()
@@ -36,6 +77,13 @@ def make_author():
 def make_author_profile():
     return lambda author, **kwargs: baker.make(
         models.AuthorProfile, author=author, **kwargs
+    )
+
+
+@pytest.fixture
+def make_profile_meta():
+    return lambda profile, **kwargs: baker.make(
+        models.ProfileMeta, profile=profile, **kwargs
     )
 
 
@@ -76,97 +124,87 @@ def make_book_category():
 
 
 @pytest.fixture
-def test_author(make_author):
+def active_author(make_author):
     return make_author()
 
 
-@pytest.fixture
-def author_with_profile(make_author, make_author_profile):
-    author = make_author()
-    profile = make_author_profile(author=author)
-    return author, profile
-
-
-@pytest.fixture
-def author_with_book_nullable(make_author, make_book_nullable):
-    author = make_author()
-    book = make_book_nullable(author=author)
-    return author, book
-
-
-@pytest.fixture
-def author_with_books(make_author, make_book):
-    author = make_author()
-    books = make_book(author=author, _quantity=2)
-    return author, books
-
-
-@pytest.fixture
-def book_with_category(make_author, make_book, make_book_category):
-    book = make_book(author=make_author())
-    category = make_book_category()
-    book.categories.add(category)
-    return book, category
-
-
-@pytest.fixture
-def make_author_with_all_relations(
-    make_author, make_author_profile, make_book, make_book_meta, make_book_category
-):
-    def _make_author_with_all_relations():
+class ManyToManyCascadeRelationTestBase:
+    @pytest.fixture
+    def active_books_with_rels(
+        self, make_author, make_book, make_book_meta, make_book_category
+    ):
         author = make_author()
-        profile = make_author_profile(author=author)
-        book_1, book_2 = make_book(author=author, _quantity=2)
-        book_meta_1 = make_book_meta(book_1)
-        book_meta_2 = make_book_meta(book_2)
-        category_1, category_2 = make_book_category(_quantity=2)
-        book_1.categories.add(category_1)
-        book_2.categories.add(category_2)
-        return author, (
-            profile,
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_1,
-            category_2,
+        cat_1, cat_2, cat_3 = make_book_category(_quantity=3)
+        book_1, book_2, book_3 = make_book(author=author, _quantity=3)
+        book_1.categories.add(cat_1)
+        book_2.categories.add(cat_2, cat_3)
+        book_1_meta = make_book_meta(book=book_1)
+        book_2_meta = make_book_meta(book=book_2)
+        return (
+            (book_1, book_2, book_3),
+            (book_1_meta, book_2_meta),
+            (cat_1, cat_2, cat_3),
         )
 
-    return _make_author_with_all_relations
+    @pytest.fixture
+    def removed_books_with_rels(self, active_books_with_rels):
+        books, book_metas, categories = active_books_with_rels
+        remove_objs(*books, *categories)
+        assert_is_removed(*books, *book_metas, *categories)
+        return books, book_metas, categories
 
 
-@pytest.fixture
-def relation_m2m(book_with_category):
-    return book_with_category
+class ManyToOneCascadeRelationTestBase:
+    @pytest.fixture
+    def active_author_with_rels(self, make_author, make_book, make_book_meta):
+        author = make_author()
+        book_1, book_2, book_3 = make_book(author=author, _quantity=3)
+        book_1_meta = make_book_meta(book=book_1)
+        book_2_meta = make_book_meta(book=book_2)
+        assert_is_active(
+            author, book_1, book_1.bookmeta, book_2, book_2.bookmeta, book_3
+        )
+        return author, (book_1, book_2, book_3), (book_1_meta, book_2_meta)
+
+    @pytest.fixture
+    def removed_author_with_rels(self, active_author_with_rels):
+        author, books, book_metas = active_author_with_rels
+        author.remove()
+        assert_is_removed(author, *books, *book_metas)
+        return author, books, book_metas
 
 
-@pytest.fixture
-def relation_m2o_cascade(make_author, make_book):
-    author = make_author()
-    book = make_book(author=author)
-    return book, author
+class ManyToOneProtectRelationTestBase:
+    @pytest.fixture
+    def active_author_with_rels(self, make_author, make_book_protect):
+        author = make_author()
+        book_1, book_2 = make_book_protect(author=author, _quantity=2)
+        assert_is_active(author, book_1, book_2)
+        return author, (book_1, book_2)
 
 
-@pytest.fixture
-def relation_m2o_protect(make_author, make_book_protect):
-    author = make_author()
-    book = make_book_protect(author=author)
-    return book, author
+class ManyToOneRestrictRelationTestBase:
+    @pytest.fixture
+    def active_author_with_rels(self, make_author, make_book_restrict):
+        author = make_author()
+        book_1, book_2 = make_book_restrict(author=author, _quantity=2)
+        assert_is_active(author, book_1, book_2)
+        return author, (book_1, book_2)
 
 
-@pytest.fixture
-def relation_m2o_restrict(make_author, make_book_restrict):
-    author = make_author()
-    book = make_book_restrict(author=author)
-    return book, author
+class OneToOneCascadeRelationTestBase:
+    @pytest.fixture
+    def active_author(self, make_author, make_author_profile, make_profile_meta):
+        author = make_author()
+        profile = make_author_profile(author=author)
+        profile_meta = make_profile_meta(profile=profile)
+        assert_is_active(author, profile, profile_meta)
+        return author
 
-
-@pytest.fixture
-def relation_m2o_nullable(author_with_book_nullable):
-    author, book = author_with_book_nullable
-    return book, author
-
-
-@pytest.fixture
-def relation_o2o(author_with_profile):
-    return author_with_profile
+    @pytest.fixture
+    def removed_author(self, active_author):
+        active_author.remove()
+        assert_is_removed(
+            active_author, active_author.profile, active_author.profile.profilemeta
+        )
+        return active_author

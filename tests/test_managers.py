@@ -3,19 +3,23 @@ from unittest.mock import patch
 
 import pytest
 import pytz
+from django.db.models import ProtectedError
+from django.db.models import RestrictedError
 from freezegun.api import freeze_time
 from test_app.models import Author
-from test_app.models import AuthorProfile
-from test_app.models import Book
-from test_app.models import BookCategory
-from test_app.models import BookMeta
 
 from django_resurrected.managers import ActiveObjectsQuerySet
 from django_resurrected.managers import AllObjectsQuerySet
 from django_resurrected.managers import RemovedObjectsQuerySet
+from tests.conftest import ManyToManyCascadeRelationTestBase
+from tests.conftest import ManyToOneCascadeRelationTestBase
+from tests.conftest import ManyToOneProtectRelationTestBase
+from tests.conftest import ManyToOneRestrictRelationTestBase
+from tests.conftest import OneToOneCascadeRelationTestBase
 from tests.conftest import assert_is_active
 from tests.conftest import assert_is_removed
-from tests.conftest import remove_objs
+from tests.conftest import run_remove_test
+from tests.conftest import run_restore_test
 
 
 @pytest.mark.django_db
@@ -24,54 +28,8 @@ class TestActiveObjectsQuerySet:
     def test_remove(self, make_author):
         authors = make_author(_quantity=3)
         assert_is_active(*authors)
-
         Author.active_objects.all().remove()
-
         assert_is_removed(*authors, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc))
-
-    @freeze_time("2025-05-01")
-    def test_remove_with_related_o2o_cascade(self, make_author, make_author_profile):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        profile_1 = make_author_profile(author=author_1)
-        profile_2 = make_author_profile(author=author_2)
-        assert_is_active(author_1, author_2, author_3, profile_1, profile_2)
-
-        Author.active_objects.filter(id=author_1.id).remove()
-
-        assert_is_active(author_2, author_3, profile_2)
-        assert_is_removed(
-            author_1, profile_1, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc)
-        )
-
-    @freeze_time("2025-05-01")
-    def test_remove_with_related_m2o_cascade(self, make_author, make_book):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        book_1 = make_book(author=author_1)
-        book_2 = make_book(author=author_2)
-        assert_is_active(author_1, author_2, author_3, book_1, book_2)
-
-        Author.active_objects.filter(id=author_1.id).remove()
-
-        assert_is_active(author_2, author_3, book_2)
-        assert_is_removed(
-            author_1, book_1, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc)
-        )
-
-    @freeze_time("2025-05-01")
-    def test_remove_with_related_m2m(self, make_author, book_with_category):
-        book, category = book_with_category
-        author_1 = book.author
-        author_2, author_3 = make_author(_quantity=2)
-        assert_is_active(author_1, author_2, author_3, book, category)
-
-        Author.active_objects.filter(id=author_1.id).remove()
-
-        assert_is_active(author_2, author_3, category)
-        # NOTE: M2M relations are not removed, as Django doesn't include them in cascade
-        # operations.
-        assert_is_removed(
-            author_1, book, removed_at=datetime(2025, 5, 1, tzinfo=pytz.utc)
-        )
 
     @patch.object(ActiveObjectsQuerySet, "remove")
     def test_delete(self, remove_mock):
@@ -80,186 +38,9 @@ class TestActiveObjectsQuerySet:
 
 
 @pytest.mark.django_db
-class TestActiveObjectsQuerySetWithAllRelations:
-    def test_remove_author(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        Author.active_objects.filter(id=author_1.id).remove()
-
-        assert_is_removed(author_1, profile, book_1, book_2, book_meta_1, book_meta_2)
-        assert_is_active(category_1, category_2, author_2, *author_2_rels)
-
-    def test_remove_profile(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-
-        AuthorProfile.active_objects.filter(id=profile.id).remove()
-
-        assert_is_removed(profile)
-        assert_is_active(
-            author_1,
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_remove_book(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        author_3, author_3_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-
-        Book.active_objects.filter(id=book_1.id).remove()
-
-        assert_is_removed(book_1, book_meta_1)
-        assert_is_active(
-            profile,
-            book_2,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_remove_book_meta(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        author_3, author_3_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-
-        BookMeta.active_objects.filter(id=book_meta_1.id).remove()
-
-        assert_is_removed(book_meta_1)
-        assert_is_active(
-            author_1,
-            book_1,
-            profile,
-            book_2,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_remove_category(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-
-        BookCategory.active_objects.filter(id=category_1.id).remove()
-
-        assert_is_removed(category_1)
-        assert_is_active(
-            author_1,
-            profile,
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-
-@pytest.mark.django_db
 class TestRemovedObjectsQuerySet:
-    def test_restore(self, make_author):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        Author.objects.all().remove()
-        assert_is_removed(author_1, author_2, author_3)
-
-        Author.removed_objects.filter(id__in=[author_1.id, author_2.id]).restore()
-
-        assert_is_active(author_1, author_2)
-        assert_is_removed(author_3)
-
-    def test_restore_without_related(self, make_author, make_author_profile):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        profile_1 = make_author_profile(author=author_1)
-        profile_2 = make_author_profile(author=author_2)
-        Author.objects.all().remove()
-        assert_is_removed(author_1, author_2, author_3, profile_1, profile_2)
-
-        result = Author.removed_objects.filter(id=author_1.id).restore()
-
-        assert_is_active(author_1)
-        assert_is_removed(author_2, author_3, profile_1, profile_2)
-        assert result == (1, {"test_app.Author": 1})
-
-    def test_restore_with_related_o2o_cascade(self, make_author, make_author_profile):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        profile_1 = make_author_profile(author=author_1)
-        profile_2 = make_author_profile(author=author_2)
-        Author.objects.all().remove()
-        assert_is_removed(author_1, author_2, author_3, profile_1, profile_2)
-
-        result = Author.removed_objects.filter(id=author_1.id).restore(
-            with_related=True
-        )
-
-        assert_is_active(author_1, profile_1)
-        assert_is_removed(author_2, author_3, profile_2)
-        assert result == (2, {"test_app.Author": 1, "test_app.AuthorProfile": 1})
-
-    def test_restore_with_related_m2o_cascade(self, make_author, make_book):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        book_1 = make_book(author=author_1)
-        book_2 = make_book(author=author_2)
-        Author.active_objects.all().remove()
-        assert_is_removed(author_1, author_2, author_3, book_1, book_2)
-
-        Author.removed_objects.filter(id=author_1.id).restore(with_related=True)
-
-        assert_is_active(author_1, book_1)
-        assert_is_removed(author_2, author_3, book_2)
-
-    def test_restore_with_related_o2m(self, make_author, make_book):
-        author_1, author_2, author_3 = make_author(_quantity=3)
-        book_1 = make_book(author=author_1)
-        book_2 = make_book(author=author_2)
-        Author.active_objects.all().remove()
-        assert_is_removed(author_1, author_2, author_3, book_1, book_2)
-
-        Book.removed_objects.filter(id=book_1.id).restore()
-
-        assert_is_active(author_1, book_1)
-        assert_is_removed(author_2, author_3, book_2)
-
-    def test_restore_with_related_m2m(self, make_author, book_with_category):
-        book, category = book_with_category
-        author_1 = book.author
-        author_2, author_3 = make_author(_quantity=2)
-        Author.active_objects.all().remove()
-        category.remove()
-        assert_is_removed(author_1, author_2, author_3, book, category)
-
-        Author.removed_objects.filter(id=author_1.id).restore(with_related=True)
-
-        assert_is_active(author_1, book)
-        assert_is_removed(author_2, author_3, category)
-
     @patch.object(RemovedObjectsQuerySet, "purge")
-    def test_delete(self, purge_mock, test_author):
+    def test_delete(self, purge_mock, active_author):
         Author.removed_objects.all().delete()
         purge_mock.assert_called_once()
 
@@ -297,209 +78,252 @@ class TestRemovedObjectsQuerySet:
 
 
 @pytest.mark.django_db
-class TestRemovedObjectsQuerySetWithAllRelations:
-    def test_restore_author(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        Author.removed_objects.filter(id=author_1.id).restore()
-
-        assert_is_active(author_1)
-        assert_is_removed(*author_1_rels, author_2, *author_2_rels)
-
-    def test_restore_author_with_related(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        Author.removed_objects.filter(id=author_1.id).restore(with_related=True)
-
-        assert_is_active(author_1, profile, book_1, book_2, book_meta_1, book_meta_2)
-        assert_is_removed(category_1, category_2, author_2, *author_2_rels)
-
-    def test_restore_profile(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        AuthorProfile.removed_objects.filter(id=profile.id).restore()
-
-        assert_is_active(author_1, profile)
-        assert_is_removed(
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_profile_with_related(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        AuthorProfile.removed_objects.filter(id=profile.id).restore(with_related=True)
-
-        assert_is_active(author_1, profile)
-        assert_is_removed(
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_book(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        Book.removed_objects.filter(id=book_1.id).restore()
-
-        assert_is_active(author_1, book_1)
-        assert_is_removed(
-            profile,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_book_with_related(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        Book.removed_objects.filter(id=book_1.id).restore(with_related=True)
-
-        assert_is_active(author_1, book_1, book_meta_1)
-        assert_is_removed(
-            profile,
-            book_2,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_book_meta(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        BookMeta.removed_objects.filter(id=book_meta_1.id).restore()
-
-        assert_is_active(author_1, book_1, book_meta_1)
-        assert_is_removed(
-            profile,
-            book_2,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_book_meta_with_related(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        BookMeta.removed_objects.filter(id=book_meta_1.id).restore(with_related=True)
-
-        assert_is_active(author_1, book_1, book_meta_1)
-        assert_is_removed(
-            profile,
-            book_2,
-            book_meta_2,
-            category_1,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_category(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        BookCategory.removed_objects.filter(id=category_1.id).restore()
-
-        assert_is_active(category_1)
-        assert_is_removed(
-            author_1,
-            profile,
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-    def test_restore_category_with_related(self, make_author_with_all_relations):
-        author_1, author_1_rels = make_author_with_all_relations()
-        author_2, author_2_rels = make_author_with_all_relations()
-        profile, book_1, book_2, book_meta_1, book_meta_2, category_1, category_2 = (
-            author_1_rels
-        )
-        remove_objs(author_1, *author_1_rels, author_2, *author_2_rels)
-
-        BookCategory.removed_objects.filter(id=category_1.id).restore(with_related=True)
-
-        assert_is_active(category_1)
-        assert_is_removed(
-            author_1,
-            profile,
-            book_1,
-            book_2,
-            book_meta_1,
-            book_meta_2,
-            category_2,
-            author_2,
-            *author_2_rels,
-        )
-
-
-@pytest.mark.django_db
 class TestAllObjectsQuerySet:
     @patch.object(AllObjectsQuerySet, "remove")
     def test_delete(self, remove_mock):
         Author.objects.all().delete()
         remove_mock.assert_called_once()
+
+
+@pytest.mark.django_db
+class TestManyToManyCascadeRelation(ManyToManyCascadeRelationTestBase):
+    def test_remove_called_by_reverse_related(self, active_books_with_rels):
+        books, book_metas, categories = active_books_with_rels
+        cat_1, cat_2, cat_3 = categories
+        model = cat_2._meta.model
+        run_remove_test(
+            model.objects.filter(id=cat_2.id),
+            expected_removed=[cat_2],
+            expected_active=[*books, *book_metas, cat_1, cat_3],
+            through_models=["test_app.Book_categories"],
+        )
+
+    def test_remove_called_by_forward_related(self, active_books_with_rels):
+        books, book_metas, categories = active_books_with_rels
+        book_1, book_2, book_3 = books
+        model = book_2._meta.model
+        run_remove_test(
+            model.objects.filter(id=book_2.id),
+            expected_removed=[book_2, book_2.bookmeta],
+            expected_active=[book_1, book_1.bookmeta, book_3, *categories],
+            through_models=["test_app.Book_categories"],
+        )
+
+    def test_restore_called_by_reverse_related(self, removed_books_with_rels):
+        books, book_metas, categories = removed_books_with_rels
+        cat_1, cat_2, cat_3 = categories
+        model = cat_2._meta.model
+        run_restore_test(
+            model.objects.filter(id=cat_2.id),
+            expected_active=[cat_2],
+            expected_removed=[*books, *book_metas, cat_1, cat_3],
+        )
+
+    def test_restore_with_related_called_by_reverse_related(
+        self, removed_books_with_rels
+    ):
+        books, book_metas, categories = removed_books_with_rels
+        cat_1, cat_2, cat_3 = categories
+        model = cat_2._meta.model
+        run_restore_test(
+            model.objects.filter(id=cat_2.id),
+            with_related=True,
+            expected_active=[cat_2],
+            expected_removed=[*books, *book_metas, cat_1, cat_3],
+        )
+
+    def test_restore_called_by_forward_related(self, removed_books_with_rels):
+        books, book_metas, categories = removed_books_with_rels
+        book_1, book_2, book_3 = books
+        model = book_2._meta.model
+        run_restore_test(
+            model.objects.filter(id=book_2.id),
+            expected_active=[book_2],
+            expected_removed=[
+                book_1,
+                book_1.bookmeta,
+                book_2.bookmeta,
+                book_3,
+                *categories,
+            ],
+        )
+
+    def test_restore_with_related_called_by_forward_related(
+        self, removed_books_with_rels
+    ):
+        books, book_metas, categories = removed_books_with_rels
+        book_1, book_2, book_3 = books
+        model = book_2._meta.model
+        run_restore_test(
+            model.objects.filter(id=book_2.id),
+            with_related=True,
+            expected_active=[book_2, book_2.bookmeta],
+            expected_removed=[book_1, book_1.bookmeta, book_3, *categories],
+        )
+
+
+@pytest.mark.django_db
+class TestManyToOneCascadeRelation(ManyToOneCascadeRelationTestBase):
+    def test_remove_called_by_reverse_related(self, active_author_with_rels):
+        author, books, book_metas = active_author_with_rels
+        model = author._meta.model
+        run_remove_test(
+            model.objects.filter(id=author.id),
+            expected_removed=[author, *books, *book_metas],
+        )
+
+    def test_remove_called_by_forward_related(self, active_author_with_rels):
+        author, books, book_metas = active_author_with_rels
+        book_1, book_2, book_3 = books
+        model = book_2._meta.model
+        run_remove_test(
+            model.objects.filter(id=book_2.id),
+            expected_removed=[book_2, book_2.bookmeta],
+            expected_active=[author, book_1, book_1.bookmeta, book_3],
+        )
+
+    def test_restore_called_by_reverse_related(self, removed_author_with_rels):
+        author, books, book_metas = removed_author_with_rels
+        model = author._meta.model
+        run_restore_test(
+            model.objects.filter(id=author.id),
+            expected_active=[author],
+            expected_removed=[*books, *book_metas],
+        )
+
+    def test_restore_with_related_called_by_reverse_related(
+        self, removed_author_with_rels
+    ):
+        author, books, book_metas = removed_author_with_rels
+        model = author._meta.model
+        run_restore_test(
+            model.objects.filter(id=author.id),
+            with_related=True,
+            expected_active=[author, *books, *book_metas],
+        )
+
+    def test_restore_called_by_forward_related(self, removed_author_with_rels):
+        author, books, book_metas = removed_author_with_rels
+        book_1, book_2, book_3 = books
+        model = book_2._meta.model
+        run_restore_test(
+            model.objects.filter(id=book_2.id),
+            expected_active=[author, book_2],
+            expected_removed=[book_1, book_1.bookmeta, book_2.bookmeta, book_3],
+        )
+
+    def test_restore_with_related_called_by_forward_related(
+        self, removed_author_with_rels
+    ):
+        author, books, book_metas = removed_author_with_rels
+        book_1, book_2, book_3 = books
+        model = book_2._meta.model
+        run_restore_test(
+            model.objects.filter(id=book_2.id),
+            with_related=True,
+            expected_active=[author, book_2, book_2.bookmeta],
+            expected_removed=[book_1, book_1.bookmeta, book_3],
+        )
+
+
+@pytest.mark.django_db
+class TestManyToOneProtectRelation(ManyToOneProtectRelationTestBase):
+    def test_remove_called_by_reverse_related(self, active_author_with_rels):
+        author, _ = active_author_with_rels
+        model = author._meta.model
+        with pytest.raises(ProtectedError):
+            model.objects.filter(id=author.id).remove()
+
+    def test_test_remove_called_by_forward_related(self, active_author_with_rels):
+        author, books = active_author_with_rels
+        book_1, book_2 = books
+        model = book_2._meta.model
+        run_remove_test(
+            model.objects.filter(id=book_2.id),
+            expected_removed=[book_2],
+            expected_active=[author, book_1],
+        )
+
+
+@pytest.mark.django_db
+class TestManyToOneRestrictRelation(ManyToOneRestrictRelationTestBase):
+    def test_remove_called_by_reverse_related(self, active_author_with_rels):
+        author, books = active_author_with_rels
+        model = author._meta.model
+        with pytest.raises(RestrictedError):
+            model.objects.filter(id=author.id).remove()
+
+    def test_test_remove_called_by_forward_related(self, active_author_with_rels):
+        author, books = active_author_with_rels
+        book_1, book_2 = books
+        model = book_2._meta.model
+        run_remove_test(
+            model.objects.filter(id=book_2.id),
+            expected_removed=[book_2],
+            expected_active=[author, book_1],
+        )
+
+
+@pytest.mark.django_db
+class TestOneToOneCascadeRelation(OneToOneCascadeRelationTestBase):
+    def test_remove_called_by_reverse_related(self, active_author):
+        model = active_author._meta.model
+        run_remove_test(
+            model.objects.filter(id=active_author.id),
+            expected_removed=[
+                active_author,
+                active_author.profile,
+                active_author.profile.profilemeta,
+            ],
+        )
+
+    def test_remove_called_by_forward_related(self, active_author):
+        model = active_author.profile._meta.model
+        run_remove_test(
+            model.objects.filter(id=active_author.profile.id),
+            expected_removed=[active_author.profile, active_author.profile.profilemeta],
+            expected_active=[active_author],
+        )
+
+    def test_restore_called_by_reverse_related(self, removed_author):
+        model = removed_author._meta.model
+        run_restore_test(
+            model.objects.filter(id=removed_author.id),
+            expected_active=[removed_author],
+            expected_removed=[
+                removed_author.profile,
+                removed_author.profile.profilemeta,
+            ],
+        )
+
+    def test_restore_with_related_called_by_reverse_related(self, removed_author):
+        model = removed_author._meta.model
+        run_restore_test(
+            model.objects.filter(id=removed_author.id),
+            with_related=True,
+            expected_active=[
+                removed_author,
+                removed_author.profile,
+                removed_author.profile.profilemeta,
+            ],
+        )
+
+    def test_restore_called_by_forward_related(self, removed_author):
+        model = removed_author.profile._meta.model
+        run_restore_test(
+            model.objects.filter(id=removed_author.profile.id),
+            expected_active=[removed_author, removed_author.profile],
+            expected_removed=[removed_author.profile.profilemeta],
+        )
+
+    def test_restore_with_related_called_by_forward_related(self, removed_author):
+        model = removed_author.profile._meta.model
+        run_restore_test(
+            model.objects.filter(id=removed_author.profile.id),
+            with_related=True,
+            expected_active=[
+                removed_author,
+                removed_author.profile,
+                removed_author.profile.profilemeta,
+            ],
+        )
