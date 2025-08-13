@@ -6,7 +6,7 @@ requires = [ "hatchling" ]
 [project]
 name = "django-resurrected"
 version = "0.2.1"
-description = ""
+description = "Soft-delete functionality for Django projects with relationship-aware deletion and restoration."
 readme = "README.md"
 keywords = [
   "recovery",
