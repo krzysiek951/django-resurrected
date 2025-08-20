@@ -51,9 +51,9 @@ class BookMeta(SoftDeleteModel):
 ### 3. Use the Enhanced Managers
 
 Each manager now has:
-- `.objects` — all records (active + removed)
-- `.active_objects` — only active (not removed)
+- `.objects` — only active (not removed)
 - `.removed_objects` — only soft-deleted
+- `.all_objects` — all records (active + removed)
 
 ### 4. Remove (Soft-Delete) with Cascading
 
@@ -64,21 +64,21 @@ Removing a parent will also remove its related children:
 >>> book = Book.objects.create(author=author, title="Dune")
 >>> meta = BookMeta.objects.create(book=book, format="ebook")
 
->>> Author.active_objects.count()
+>>> Author.objects.count()
 1
->>> Book.active_objects.count()
+>>> Book.objects.count()
 1
->>> BookMeta.active_objects.count()
+>>> BookMeta.objects.count()
 1
 
 >>> author.remove()
 (3, {'test_app.Author': 1, 'test_app.Book': 1, 'test_app.BookMeta': 1})
 
->>> Author.active_objects.count()
+>>> Author.objects.count()
 0
->>> Book.active_objects.count()
+>>> Book.objects.count()
 0
->>> BookMeta.active_objects.count()
+>>> BookMeta.objects.count()
 0
 ```
 
@@ -90,11 +90,11 @@ Removing a parent will also remove its related children:
 >>> author.restore()
 (1, {'test_app.Author': 1})
 
->>> Author.active_objects.count()
+>>> Author.objects.count()
 1
->>> Book.active_objects.count()
+>>> Book.objects.count()
 0
->>> BookMeta.active_objects.count()
+>>> BookMeta.objects.count()
 0
 ```
 
@@ -104,11 +104,11 @@ Removing a parent will also remove its related children:
 >>> author.restore(with_related=True)
 (3, {'test_app.Author': 1, 'test_app.Book': 1, 'test_app.BookMeta': 1})
 
->>> Author.active_objects.count()
+>>> Author.objects.count()
 1
->>> Book.active_objects.count()
+>>> Book.objects.count()
 1
->>> BookMeta.active_objects.count()
+>>> BookMeta.objects.count()
 1
 ```
 
@@ -121,11 +121,11 @@ Removing a parent will also remove its related children:
 >>> book.restore()
 (2, {'test_app.Book': 1, 'test_app.Author': 1})
 
->>> Author.active_objects.count()
+>>> Author.objects.count()
 1
->>> Book.active_objects.count()
+>>> Book.objects.count()
 1
->>> BookMeta.active_objects.count()
+>>> BookMeta.objects.count()
 0
 ```
 
