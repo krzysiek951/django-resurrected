@@ -24,9 +24,9 @@ from tests.conftest import run_restore_test
 @pytest.mark.django_db
 class TestSoftDeleteModel:
     def test_manager_type(self, active_author):
-        assert isinstance(Author.objects, AllObjectsManager)
-        assert isinstance(Author.active_objects, ActiveObjectsManager)
+        assert isinstance(Author.objects, ActiveObjectsManager)
         assert isinstance(Author.removed_objects, RemovedObjectsManager)
+        assert isinstance(Author.all_objects, AllObjectsManager)
 
     @freeze_time("2025-05-01")
     def test_is_expired(self, active_author, monkeypatch):
@@ -207,7 +207,7 @@ class TestManyToOneProtectRelation(ManyToOneProtectRelationTestBase):
         with pytest.raises(ProtectedError):
             author.remove()
 
-    def test_test_remove_called_by_forward_related(self, active_author_with_rels):
+    def test_remove_called_by_forward_related(self, active_author_with_rels):
         author, books = active_author_with_rels
         book_1, book_2 = books
         run_remove_test(
@@ -231,7 +231,7 @@ class TestManyToOneRestrictRelation(ManyToOneRestrictRelationTestBase):
         with pytest.raises(RestrictedError):
             author.remove()
 
-    def test_test_remove_called_by_forward_related(self, active_author_with_rels):
+    def test_remove_called_by_forward_related(self, active_author_with_rels):
         author, books = active_author_with_rels
         book_1, book_2 = books
         run_remove_test(

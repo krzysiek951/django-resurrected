@@ -22,9 +22,9 @@ class SoftDeleteModel(models.Model):
     is_removed = models.BooleanField(default=False)
     removed_at = models.DateTimeField(null=True, blank=True)
 
-    objects = AllObjectsManager()
-    active_objects = ActiveObjectsManager()
+    objects = ActiveObjectsManager()
     removed_objects = RemovedObjectsManager()
+    all_objects = AllObjectsManager()
 
     class Meta:
         abstract = True

@@ -71,7 +71,7 @@ class Collector(models.deletion.Collector):
     def get_querysets_for_update(self, **filters) -> Iterator[QuerySet]:
         for model, objs in self.get_model_objs_for_update():
             if pk_list := [obj.pk for obj in objs if obj.pk is not None]:
-                yield model.objects.filter(pk__in=pk_list, **filters)
+                yield model.all_objects.filter(pk__in=pk_list, **filters)
 
     def update(
         self, querysets: Iterable[QuerySet], **kwargs
