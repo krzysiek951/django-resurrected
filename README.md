@@ -4,8 +4,13 @@
     <strong>Deleted is just a state. Bring your models back.</strong>
   </p>
   <p align="center">
-    <a href="https://pypi.org/project/django-resurrected/"><img src="https://img.shields.io/pypi/v/django-resurrected.svg" alt="PyPI Version"></a>
     <a href="https://pypi.org/project/django-resurrected/"><img src="https://img.shields.io/pypi/pyversions/django-resurrected.svg" alt="Python Versions"></a>
+    <a href="https://pypi.org/project/django-resurrected/"><img src="https://img.shields.io/pypi/djversions/django-resurrected" alt="Django Versions"></a>
+  </p>
+  <p align="center">
+    <a href="https://github.com/krzysiek951/django-resurrected/actions"><img src="https://img.shields.io/github/actions/workflow/status/krzysiek951/django-resurrected/main.yaml.svg?branch=main" alt="Build Status"></a>
+    <a href="https://pypi.org/project/django-resurrected/"><img src="https://img.shields.io/pypi/v/django-resurrected.svg" alt="PyPI Version"></a>
+    <a href="https://github.com/krzysiek951/django-resurrected/blob/main/LICENSE"><img src="https://img.shields.io/github/license/krzysiek951/django-resurrected" alt="License"></a>
   </p>
 </div>
 
