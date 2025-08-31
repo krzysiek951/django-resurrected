@@ -5,7 +5,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "django-resurrected"
-version = "0.2.1"
+version = "0.3.0"
 description = "Soft-delete functionality for Django projects with relationship-aware deletion and restoration."
 readme = "README.md"
 keywords = [
@@ -110,3 +110,23 @@ pythonpath = [ "src", "examples/test_project" ]
 addopts = [ "--import-mode=importlib" ]
 DJANGO_SETTINGS_MODULE = "test_project.settings"
 python_files = [ "test_*.py", "*_test.py", "testing/python/*.py" ]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+source = [
+  "src",
+  "tests",
+]
+
+[tool.coverage.paths]
+source = [
+  "src",
+  ".tox/**/site-packages",
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+]
